@@ -8,15 +8,29 @@ d3.csv('data/repos-dump.csv', function(githubData) {
     })
     githubData = githubData.filter(function(d) { return d.stars > 0 && d.forks > 0 && d.language; });
 
+    var groupedByLanguage = d3.nest()
+        .key(function(d) { return d.language; })
+        .entries(githubData);
+
+    // compute a linear best fit for each language
+    var linearFit = groupedByLanguage.map(function(d) {
+        var series = d.values.map(function(d) { return [d.stars, d.forks]; });
+        var fit = regression('linear', series);
+        var line = [fit.points[0], fit.points[fit.points.length - 1]];
+        line.language = d.key;
+        return line;
+    })
+
+    // the data that will be bound to the chart
     data = {
         githubData: githubData,
-        line: [[1, 1], [1e6, 1e6]]
+        line: linearFit
     };
 
-    // obtain the unique list of languages
-    var languages = d3.set(githubData.map(function(d) { return d.language; }));
+    // obtain the unique list of languages and create a colour scale
+    var languages = groupedByLanguage.map(function(d) { return d.key; });
     var color = d3.scale.category20()
-        .domain(languages.values());
+        .domain(languages);
 
     // create a scale for sizing the points
     var sizeScale = d3.scale.linear()
@@ -32,14 +46,14 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             clearTimeout(timer); highlighted = d; render();
         })
         .on('cellout', function(d) {
-            timer = setTimeout(function(d) { highlighted = ''; render(); }, 300);
+            timer = setTimeout(function(d) { highlighted = ''; render(); }, 50);
         });
 
     function isGrayed(d) {
         return !((highlighted && d.language === highlighted) || !highlighted)
     }
 
-    // create a point series
+    // create a point series, where the size is dynamic, creating a bubble series
     var pointSeries = fc.series.point()
         .xValue(function(d) { return d.stars; })
         .yValue(function(d) { return d.forks; })
@@ -47,20 +61,32 @@ d3.csv('data/repos-dump.csv', function(githubData) {
         .decorate(function(sel) {
             sel.style({
                 'fill': function(d) { return isGrayed(d) ? '#999' : color(d.language); },
-                'opacity': function(d) { return highlighted ? (isGrayed(d) ? 0.1 : 1.0) : 0.5 }
+                'opacity': function(d) { return highlighted ? (isGrayed(d) ? 0.1 : 1.0) : 0.8 }
+            });
+            sel.enter()
+                .select('path')
+                .on('mouseenter', function(d) { console.log(d); })
+                .on('mouseleave', function(d) { console.log(d); });
+        });
+
+    // create a line series
+    var lineSeries  = fc.series.line()
+        .xValue(function(d) { return d[0]; })
+        .yValue(function(d) { return d[1]; })
+        .decorate(function(sel) {
+            sel.style({
+                'stroke': '#444',
+                'opacity': function(d) { return highlighted ? (isGrayed(d) ? 0 : 1) : 0; },
             });
         });
 
-    var lineSeries  = fc.series.line()
-        .xValue(function(d) { return d[0]; })
-        .yValue(function(d) { return d[1]; });
-
+    // use  amulti-series to render a line for each linera fit series and a point series
     var multiSeries = fc.series.multi()
-        .series([pointSeries, lineSeries])
-        .mapping(function(series) {
+        .series([pointSeries].concat(data.line.map(function(d) { return lineSeries; })))
+        .mapping(function(series, index) {
             switch(series) {
             case pointSeries: return this.githubData;
-            case lineSeries: return this.line;
+            case lineSeries: return this.line[index - 1];
             }
         });
 
