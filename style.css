@@ -17,6 +17,19 @@ body, text {
     border: 1px solid #ddd;
 }
 
+#info-box svg {
+    fill: #333;
+    stroke-width: 0;
+    display: inline-block;
+    position: relative;
+    top: 2px;
+}
+
+#info-box span {
+    margin-left: 5px;
+    margin-right: 10px;
+}
+
 #info-box h4 {
     margin-top: 5px;
 }
