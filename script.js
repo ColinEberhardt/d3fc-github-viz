@@ -1,22 +1,27 @@
-d3.csv('data/repos-dump.csv', function(data) {
+d3.csv('data/repos-dump.csv', function(githubData) {
 
     // coerce numbers and add computed properties
-    data.forEach(function(d) {
+    githubData.forEach(function(d) {
         d.stars = Number(d['stars']);
         d.forks = Number(d['forks']);
         d.combination = d.stars + d.forks;
     })
-    data = data.filter(function(d) { return d.stars > 0 && d.forks > 0 && d.language; });
+    githubData = githubData.filter(function(d) { return d.stars > 0 && d.forks > 0 && d.language; });
+
+    data = {
+        githubData: githubData,
+        line: [[1, 1], [1e6, 1e6]]
+    };
 
     // obtain the unique list of languages
-    var languages = d3.set(data.map(function(d) { return d.language; }));
+    var languages = d3.set(githubData.map(function(d) { return d.language; }));
     var color = d3.scale.category20()
         .domain(languages.values());
 
     // create a scale for sizing the points
     var sizeScale = d3.scale.linear()
         .range([5, 800])
-        .domain(fc.util.extent().fields('combination')(data));
+        .domain(fc.util.extent().fields('combination')(githubData));
 
     // create a legend where the language is highlighted on mouse-over
     var highlighted = '';
@@ -46,21 +51,33 @@ d3.csv('data/repos-dump.csv', function(data) {
             });
         });
 
+    var lineSeries  = fc.series.line()
+        .xValue(function(d) { return d[0]; })
+        .yValue(function(d) { return d[1]; });
+
+    var multiSeries = fc.series.multi()
+        .series([pointSeries, lineSeries])
+        .mapping(function(series) {
+            switch(series) {
+            case pointSeries: return this.githubData;
+            case lineSeries: return this.line;
+            }
+        });
+
     var chart = fc.chart.cartesian(
                   d3.scale.log(),
                   d3.scale.log())
-
-        .xDomain(fc.util.extent().pad([0,1]).fields("stars")(data))
+        .xDomain(fc.util.extent().pad([0,1]).fields("stars")(githubData))
         .xLabel('Stars (Log)')
         .xNice()
         .xTicks(2, d3.format(',d'))
         .yLabel('Forks (Log)')
-        .yDomain(fc.util.extent().pad([0,1]).fields("forks")(data))
+        .yDomain(fc.util.extent().pad([0,1]).fields("forks")(githubData))
         .yNice()
         .yTicks(2, d3.format(',d'))
         .yOrient("left")
         .margin({left: 50, bottom: 50, right: 40})
-        .plotArea(pointSeries)
+        .plotArea(multiSeries)
         .decorate(function(selection) {
             // decorate to add the legend
             selection.enter()
