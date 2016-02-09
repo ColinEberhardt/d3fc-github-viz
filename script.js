@@ -1,3 +1,16 @@
+function updateInfoBox(data) {
+    if (data) {
+        d3.select('#info-box')
+            .style('display', 'block')
+            .html('<h4><a href=\'http://github.com/' + data.full_name + '\'>' + data.full_name + '</a></h4>' +
+                '<p><span class=\'stars\'>' + data.stars + '</span><span class=\'forks\'>' + data.forks +
+                '<p>' + data.description + '</p>');
+    } else {
+        d3.select('#info-box')
+            .style('display', 'none')
+    }
+}
+
 d3.csv('data/repos-dump.csv', function(githubData) {
 
     // coerce numbers and add computed properties
@@ -43,7 +56,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
     var legend = d3.legend.color()
         .scale(color)
         .on('cellover', function(d) {
-            clearTimeout(timer); highlighted = d; render();
+            clearTimeout(timer); highlighted = d; updateInfoBox(); render();
         })
         .on('cellout', function(d) {
             timer = setTimeout(function(d) { highlighted = ''; render(); }, 50);
@@ -65,8 +78,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             });
             sel.enter()
                 .select('path')
-                .on('mouseenter', function(d) { console.log(d); })
-                .on('mouseleave', function(d) { console.log(d); });
+                .on('click', function(d) { updateInfoBox(d); });
         });
 
     // create a line series
@@ -111,7 +123,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
                 .classed('legend-container', true)
                 .layout({
                     position: 'absolute',
-                    right: 50,
+                    right: 70,
                     bottom: 80,
                     width: 90,
                     height: 372

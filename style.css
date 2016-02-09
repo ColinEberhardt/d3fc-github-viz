@@ -1,6 +1,28 @@
+body, text {
+    font-size: 14px;
+}
+
 #chart {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
+}
+
+#info-box {
+    position: absolute;
+    right: 183px;
+    bottom: 80px;
+    width: 300px;
+    height: 200px;
+    padding:  10px;
+    border: 1px solid #ddd;
+}
+
+#info-box h4 {
+    margin-top: 5px;
+}
+
+#info-box p {
+    overflow: hidden;
 }
 
 .container {
@@ -10,4 +32,15 @@
 .point path {
     stroke-width: 0.5;
     stroke: black;
+}
+
+.point path:hover {
+    stroke-width: 2.0;
+    opacity: 1.0;
+}
+
+.label {
+    font-weight: normal;
+    padding: 0;
+    font-size: 100%;
 }
