@@ -131,7 +131,8 @@ function renderBubbleChart(githubData) {
         .yNice()
         .yTicks(2, d3.format(',d'))
         .yOrient('left')
-        .margin({left: 60, bottom: 40, right: 40, top: 20})
+        .margin({left: 60, bottom: 40, right: 40, top: 40})
+        .chartLabel('Stars vs. Forks')
         .plotArea(multiSeries)
         .decorate(function(selection) {
             // decorate to add the legend
@@ -158,7 +159,7 @@ function renderBubbleChart(githubData) {
     }
     render();
 
-    d3.select('span[data-language]')
+    d3.selectAll('span[data-language]')
         .each(function() {
             var element = d3.select(this);
             var language = element.attr('data-language');
@@ -203,9 +204,7 @@ function renderBoxPlot(githubData) {
             repoCount: languageGroup.values.length,
             quartile: quartile(languageGroup.values.map(function(d) { return d.forksPerStar; }))
         };
-    });
-
-    groupedByLanguage.sort(function(a, b) {
+    }).sort(function(a, b) {
         return a.quartile.median - b.quartile.median;
     });
 

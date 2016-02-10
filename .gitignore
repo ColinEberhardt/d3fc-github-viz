@@ -1,1 +1,12 @@
 node_modules
+
+!node_modules/d3fc/node_modules/d3/d3.js
+!node_modules/d3fc/node_modules/css-layout/dist/css-layout.js
+!node_modules/d3fc/node_modules/d3-svg-legend/d3-legend.js
+!node_modules/d3fc/node_modules/svg-innerhtml/svg-innerhtml.js
+!node_modules/d3fc/dist/d3fc.js
+
+!node_modules/regression/build/regression.min.js
+
+!node_modules/d3fc/dist/d3fc.css
+!node_modules/bootstrap/dist/css/bootstrap.css

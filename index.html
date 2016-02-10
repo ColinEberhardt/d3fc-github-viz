@@ -2,7 +2,7 @@
 <html lang='en'>
   <head>
     <meta charset='utf-8'>
-    <title>title</title>
+    <title>Viz - d3fc</title>
     <script src='node_modules/d3fc/node_modules/d3/d3.js'></script>
     <script src='node_modules/d3fc/node_modules/css-layout/dist/css-layout.js'></script>
     <script src='node_modules/d3fc/node_modules/d3-svg-legend/d3-legend.js'></script>
@@ -18,14 +18,29 @@
   <body>
     <div class='container-fixed container'>
       <div class='jumbotron'>
-        <h1>Hello, world!</h1>
+        <h1>Viz - d3fc</h1>
+        <p>Interactive visualizations and stats of GitHub's newest, most popular repos.</p>
       </div>
+      <p>The interactive visualizations on this page are based on the excellent <a href='https://github.com/donnemartin/viz'>Viz project</a>.
+          Donne Martin, the creator of Viz, mined GitHub data, extracting the metadata for all repositories created in 2015 with >100 stars.
+          He has shared a number of different visualizations based on this data.</p>
+      <p>Donne has made the underlying data available, which has allowed me to create a similar set of visualizations using
+          D3 and <a href='https://d3fc.io/'>d3fc</a>. As one of the creators of d3fc, I am using this as an oppurtunity to demonstrate
+          the power of the component-based approach, which allows you to create bespoke charts and visualizations from a range
+          of building blocks.</p>
       <div class='bubble-chart'>
         <div class='chart'></div>
         <div class='info-box' style='display: none'></div>
       </div>
-      <p>Blah blah commentary <span data-language='C#'>C#</span>.
+      <p>The above charts plots all of the ~7,000 repos in the dataset as a scatter chart of stars vs. forks. The majority of the repositories
+          sit beneath the stars = forks line, indicating that the majority of repositories have more stars than forks. If you mouse-over
+          the legend you can see that the distribution for each language.</p>
+      <p>There are some interesting patterns, for example <span data-language='JavaScript'>JavaScript</span> projects receive a lot of stars
+          compared to forks, whereas <span data-language='C#'>C#</span>, <span data-language='Java'>Java</span>
+          and <span data-language='C++'>C++</span> received a much higher ratio.</p>
+      <p>Of course this relationship is much easier to see when the forks-per-star ratio is plotted directly:</p>
       <div class='boxplot-chart chart' ></div>
+      <p>The above makes use of d3fc's newly added <a href='https://d3fc.io/components/series/boxPlot.html'>boxplot series</a> component.</p>
     </div>
     <script src='script.js'></script>
   </body>
