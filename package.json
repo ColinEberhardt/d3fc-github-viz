@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "less": "lessc style.less dist/style.css",
-    "copy": "cp node_modules/d3fc/node_modules/d3/d3.js dist && cp node_modules/d3fc/node_modules/css-layout/dist/css-layout.js dist && cp node_modules/d3fc/node_modules/d3-svg-legend/d3-legend.js dist && cp node_modules/d3fc/node_modules/svg-innerhtml/svg-innerhtml.js dist && cp node_modules/d3fc/dist/d3fc.js dist && cp node_modules/regression/build/regression.min.js dist && cp node_modules/d3fc/dist/d3fc.css dist && cp node_modules/bootstrap/dist/css/bootstrap.css dist"
+    "copy": "cp node_modules/d3fc/node_modules/d3/d3.min.js dist && cp node_modules/d3fc/node_modules/css-layout/dist/css-layout.js dist && cp node_modules/d3fc/node_modules/d3-svg-legend/d3-legend.js dist && cp node_modules/d3fc/node_modules/svg-innerhtml/svg-innerhtml.js dist && cp node_modules/d3fc/dist/d3fc.min.js dist && cp node_modules/regression/build/regression.min.js dist && cp node_modules/d3fc/dist/d3fc.css dist && cp node_modules/bootstrap/dist/css/bootstrap.css dist"
   },
   "author": "",
   "license": "ISC",
