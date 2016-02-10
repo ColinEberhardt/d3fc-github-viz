@@ -14,6 +14,9 @@ function updateInfoBox(data) {
     }
 }
 
+var highlighted = '', data, chart;
+
+
 d3.csv('data/repos-dump.csv', function(githubData) {
 
     // coerce numbers and add computed properties
@@ -55,7 +58,6 @@ d3.csv('data/repos-dump.csv', function(githubData) {
         .domain(fc.util.extent().fields('combination')(githubData));
 
     // create a legend where the language is highlighted on mouse-over
-    var highlighted = '';
     var timer;
     var legend = d3.legend.color()
         .scale(color)
@@ -114,7 +116,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             }
         });
 
-    var chart = fc.chart.cartesian(
+    chart = fc.chart.cartesian(
                   d3.scale.log(),
                   d3.scale.log())
         .xDomain(fc.util.extent().pad([0,1]).fields("stars")(githubData))
@@ -146,10 +148,16 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             selection.select('g.legend-container').call(legend);
         });
 
-    function render() {
-        d3.select("#chart")
-            .datum(data)
-            .call(chart);
-    }
     render();
 });
+
+function render() {
+    d3.select("#chart")
+        .datum(data)
+        .call(chart);
+}
+
+function highlightOnMouseOver(sel, language) {
+    sel.on('mouseenter', function() { highlighted = language; render(); })
+       .on('mouseleave', function() { highlighted = ''; render(); })
+}
