@@ -1,23 +1,26 @@
-var forkSvg = '<svg aria-hidden=\'true\' class=\'octicon octicon-repo-forked\' height=\'16\' role=\'img\' version=\'1.1\' viewBox=\'0 0 10 16\' width=\'10\'><path d=\'M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z\'></path></svg>'
-var starSvg = '<svg aria-hidden=\'true\' class=\'octicon octicon-star\' height=\'16\' role=\'img\' version=\'1.1\' viewBox=\'0 0 14 16\' width=\'14\'><path d=\'M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z\'></path></svg>'
-
-function updateInfoBox(data) {
-    if (data) {
-        d3.select('#info-box')
-            .style('display', 'block')
-            .html('<h4><a href=\'http://github.com/' + data.full_name + '\'>' + data.full_name + '</a></h4>' +
-                '<p>' + starSvg + '<span>' + data.stars + '</span>' + forkSvg + '<span>' + data.forks + '</span></p>' +
-                '<p>' + data.description + '</p>');
-    } else {
-        d3.select('#info-box')
-            .style('display', 'none')
-    }
-}
-
-var highlighted = '', data, chart;
-
-
 d3.csv('data/repos-dump.csv', function(githubData) {
+    renderBubbleChart(githubData);
+    renderBoxPlot(githubData);
+})
+
+
+function renderBubbleChart(githubData) {
+
+    var forkSvg = '<svg aria-hidden=\'true\' class=\'octicon octicon-repo-forked\' height=\'16\' role=\'img\' version=\'1.1\' viewBox=\'0 0 10 16\' width=\'10\'><path d=\'M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z\'></path></svg>'
+    var starSvg = '<svg aria-hidden=\'true\' class=\'octicon octicon-star\' height=\'16\' role=\'img\' version=\'1.1\' viewBox=\'0 0 14 16\' width=\'14\'><path d=\'M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z\'></path></svg>'
+
+    function updateInfoBox(data) {
+        if (data) {
+            d3.select('.info-box')
+                .style('display', 'block')
+                .html('<h4><a href=\'http://github.com/' + data.full_name + '\'>' + data.full_name + '</a></h4>' +
+                    '<p>' + starSvg + '<span>' + data.stars + '</span>' + forkSvg + '<span>' + data.forks + '</span></p>' +
+                    '<p>' + data.description + '</p>');
+        } else {
+            d3.select('.info-box')
+                .style('display', 'none')
+        }
+    }
 
     // coerce numbers and add computed properties
     githubData.forEach(function(d) {
@@ -41,7 +44,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
     })
 
     // the data that will be bound to the chart
-    data = {
+    var data = {
         githubData: githubData,
         line: linearFit,
         diagonal: [[1, 1], [1e6, 1e6]]
@@ -58,7 +61,7 @@ d3.csv('data/repos-dump.csv', function(githubData) {
         .domain(fc.util.extent().fields('combination')(githubData));
 
     // create a legend where the language is highlighted on mouse-over
-    var timer;
+    var timer, highlighted = '';
     var legend = d3.legend.color()
         .scale(color)
         .on('cellover', function(d) {
@@ -116,18 +119,18 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             }
         });
 
-    chart = fc.chart.cartesian(
+    var chart = fc.chart.cartesian(
                   d3.scale.log(),
                   d3.scale.log())
-        .xDomain(fc.util.extent().pad([0,1]).fields("stars")(githubData))
+        .xDomain(fc.util.extent().pad([0,1]).fields('stars')(githubData))
         .xLabel('Stars (Log)')
         .xNice()
         .xTicks(2, d3.format(',d'))
         .yLabel('Forks (Log)')
-        .yDomain(fc.util.extent().pad([0,1]).fields("forks")(githubData))
+        .yDomain(fc.util.extent().pad([0,1]).fields('forks')(githubData))
         .yNice()
         .yTicks(2, d3.format(',d'))
-        .yOrient("left")
+        .yOrient('left')
         .margin({left: 60, bottom: 40, right: 40, top: 20})
         .plotArea(multiSeries)
         .decorate(function(selection) {
@@ -148,16 +151,115 @@ d3.csv('data/repos-dump.csv', function(githubData) {
             selection.select('g.legend-container').call(legend);
         });
 
+    function render() {
+        d3.select('.bubble-chart > .chart')
+            .datum(data)
+            .call(chart);
+    }
     render();
-});
 
-function render() {
-    d3.select("#chart")
+    d3.select('span[data-language]')
+        .each(function() {
+            var element = d3.select(this);
+            var language = element.attr('data-language');
+            element.on('mouseenter', function() { highlighted = language; render(); })
+               .on('mouseleave', function() { highlighted = ''; render(); })
+        })
+};
+
+function renderBoxPlot(githubData) {
+
+    function quartile(data) {
+        data.sort();
+        function valueAtLocation(location) {
+            var index = Math.floor(location * data.length);
+            return data[index];
+        }
+        return {
+            upper: valueAtLocation(0.75),
+            lower: valueAtLocation(0.25),
+            low: data[0],
+            high: data[data.length - 1],
+            median: valueAtLocation(0.5)
+        };
+    }
+
+    // coerce numbers and add computed properties
+    githubData.forEach(function(d) {
+        d.stars = Number(d['stars']);
+        d.forks = Number(d['forks']);
+        d.forksPerStar = d.forks / d. stars;
+    })
+    githubData = githubData.filter(function(d) { return d.stars > 0 && d.forks > 0 && d.language; });
+
+    var groupedByLanguage = d3.nest()
+        .key(function(d) { return d.language; })
+        .entries(githubData);
+
+    groupedByLanguage = groupedByLanguage.map(function(languageGroup) {
+        return {
+            key: languageGroup.key,
+            values: languageGroup.values,
+            repoCount: languageGroup.values.length,
+            quartile: quartile(languageGroup.values.map(function(d) { return d.forksPerStar; }))
+        };
+    });
+
+    groupedByLanguage.sort(function(a, b) {
+        return a.quartile.median - b.quartile.median;
+    });
+
+
+    // the data that will be bound to the chart
+    data = {
+        githubData: githubData,
+        groupedByLanguage: groupedByLanguage
+    };
+
+    // obtain the unique list of languages and create a colour scale
+    var languages = groupedByLanguage.map(function(d) { return d.key; });;
+
+    // create a point series, where the size is dynamic, creating a bubble series
+    var pointSeries = fc.series.point()
+        .size(20)
+        .xValue(function(d) { return d.forksPerStar; })
+        .yValue(function(d) { return d.language; });
+
+    var boxSeries = fc.series.boxPlot()
+        .orient('horizontal')
+        .cap(0.5)
+        .value(function(d) { return d.key; })
+        .median(function(d) { return d.quartile.median; })
+        .lowerQuartile(function(d) { return d.quartile.lower; })
+        .upperQuartile(function(d) { return d.quartile.upper; })
+        .low(function(d) { return d.quartile.low; })
+        .high(function(d) { return d.quartile.high; });
+
+    // use  amulti-series to render a line for each linera fit series and a point series
+    var multiSeries = fc.series.multi()
+        .series([pointSeries, boxSeries])
+        .mapping(function(series) {
+            switch(series) {
+            case boxSeries: return this.groupedByLanguage;
+            case pointSeries: return this.githubData;
+            }
+        });
+
+
+    var chart = fc.chart.cartesian(
+                  d3.scale.log(),
+                  d3.scale.ordinal())
+        .xDomain(fc.util.extent().pad([0,1]).fields('forksPerStar')(githubData))
+        .xLabel('Forks per Star (Log)')
+        .xNice()
+        .xTicks(5, d3.format('.0'))
+        .yDomain(languages)
+        .yOrient('left')
+        .margin({left: 120, bottom: 40, right: 40, top: 20})
+        .plotArea(multiSeries);
+
+    d3.select('.boxplot-chart')
         .datum(data)
         .call(chart);
-}
 
-function highlightOnMouseOver(sel, language) {
-    sel.on('mouseenter', function() { highlighted = language; render(); })
-       .on('mouseleave', function() { highlighted = ''; render(); })
 }

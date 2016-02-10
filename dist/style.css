@@ -1,0 +1,74 @@
+body,
+text {
+  font-size: 16px;
+}
+.container-fixed {
+  margin: 0 auto;
+  max-width: 960px;
+}
+.chart .label {
+  font-weight: normal;
+  padding: 0;
+  font-size: 100%;
+}
+.bubble-chart {
+  position: relative;
+  font-size: 14px;
+  width: 100%;
+  height: 600px;
+}
+.bubble-chart .chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.bubble-chart .chart .point path {
+  stroke-width: 0.5;
+  stroke: black;
+}
+.bubble-chart .chart .point path:hover {
+  stroke-width: 2.0;
+  opacity: 1.0;
+}
+.bubble-chart .info-box {
+  position: absolute;
+  right: 183px;
+  bottom: 80px;
+  width: 250px;
+  height: 200px;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+.bubble-chart .info-box svg {
+  fill: #333;
+  stroke-width: 0;
+  display: inline-block;
+  position: relative;
+  top: 2px;
+}
+.bubble-chart .info-box span {
+  margin-left: 5px;
+  margin-right: 10px;
+}
+.bubble-chart .info-box h4 {
+  margin-top: 5px;
+}
+.bubble-chart .info-box p {
+  overflow: hidden;
+}
+.boxplot-chart {
+  position: relative;
+  font-size: 14px;
+  width: 100%;
+  height: 600px;
+}
+.boxplot-chart .point > path {
+  stroke-width: 0;
+  fill: rgba(0, 0, 0, 0.1);
+}
+.boxplot-chart .box-plot > path {
+  fill: rgba(0, 0, 150, 0.2);
+  stroke: black;
+}
