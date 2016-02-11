@@ -1,7 +1,80 @@
 d3.csv('data/repos-dump.csv', function(githubData) {
     renderBubbleChart(githubData);
     renderBoxPlot(githubData);
-})
+});
+
+// a very simple example component
+function label(selection) {
+    selection.append("circle")
+        .attr("cx", function(d) {
+            return d.anchor[0];
+        })
+        .attr("cy", function(d) {
+            return d.anchor[1];
+        })
+        .attr("r", 5);
+    selection.append("rect")
+        .layout("flex", 1);
+    selection.append("text")
+        .text(function(d) { return d.language; })
+        .attr({x: 40, y: 18, 'text-anchor': 'middle'});
+    selection.layout();
+}
+
+d3.csv('data/repos-users-dump.csv', function(githubData) {
+    var data = d3.nest()
+        .key(function(d) { return d.language; })
+        .entries(githubData)
+        .map(function(lang) {
+            return {
+                language: lang.key,
+                orgs: lang.values.filter(function(d) { return d.type === 'Organization'; }).length,
+                users: lang.values.filter(function(d) { return d.type === 'User'; }).length
+            }
+        });
+
+    var color = d3.scale.category20()
+        .domain(data.map(function(d) { return d.language; }));
+
+    var sizeScale = d3.scale.linear()
+        .range([5, 1500])
+        .domain(fc.util.extent().fields(function(d) { return d.orgs + d.users; })(data));
+
+    var pointSeries = fc.series.point()
+        .xValue(function(d) { return d.orgs; })
+        .yValue(function(d) { return d.users; })
+        .size(function(d) { return sizeScale(d.orgs + d.users); })
+        .decorate(function(sel) {
+            sel.enter()
+                .attr('fill', function(d) { return color(d.language); });
+        });
+
+    var strategy = fc.layout.strategy.local();
+
+    var layout = fc.layout.rectangles(strategy)
+        .size([80, 20])
+        .position([function(d) { return d.orgs; }, function(d) { return d.users; }])
+        .anchor(function(d, i, pos) { d.anchor = pos; })
+        .component(label);
+
+
+
+    var chart = fc.chart.cartesian(
+                  d3.scale.linear(),
+                  d3.scale.linear())
+        .yDomain(fc.util.extent().pad(0.2).fields('users')(data))
+        .xDomain(fc.util.extent().pad(0.2).fields('orgs')(data))
+        // .xLabel('Sepal Width (cm)')
+        // .yLabel('Sepal Length (cm)')
+        .yOrient('left')
+        .margin({left: 50, bottom: 50})
+        .plotArea(layout);
+
+        d3.select('.scatter-chart')
+            .datum(data)
+            .call(chart);
+
+});
 
 
 function renderBubbleChart(githubData) {

@@ -894,8 +894,8 @@
                     var childPos = position(d, i);
                     var childSize = size(d, i);
                     return {
-                        x: childPos[0],
-                        y: childPos[1],
+                        x: xScale(childPos[0]),
+                        y: yScale(childPos[1]),
                         width: childSize[0],
                         height: childSize[1]
                     };
