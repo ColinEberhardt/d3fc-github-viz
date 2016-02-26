@@ -76,6 +76,9 @@ span[data-language] {
   margin-top: 30px;
   margin-bottom: 20px;
 }
+.scatter-chart .point {
+  stroke-width: 0;
+}
 .boxplot-chart {
   position: relative;
   font-size: 14px;

@@ -70,11 +70,13 @@ text {
 }
 
 .x-axis.bottom .label {
-  dominant-baseline: ideographic;
+  dominant-baseline: middle;
 }
 
 .cartesian-chart, .multiples-chart {
   overflow: visible;
+  /* see: https://github.com/ScottLogic/d3fc/issues/779 */
+  vertical-align: middle;
 }
 
 .multiples-chart .label {
@@ -245,7 +247,8 @@ text {
   stroke-width: 1;
   stroke-dasharray: 3, 3;
 }
-.annotation text {
+.annotation .right-handle text,
+.annotation .top-handle text {
   text-anchor: end;
 }
 

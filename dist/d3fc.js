@@ -140,7 +140,7 @@
         }
     }
 
-    function layout(node) {
+    function _layout(node) {
         if (ownerSVGElement(node).__layout__ === 'suspended') {
             return;
         }
@@ -193,7 +193,7 @@
                     // layout(number, number) - sets the width and height and performs layout
                     this.setAttribute('layout-width', name);
                     this.setAttribute('layout-height', value);
-                    layout(this);
+                    _layout(this);
                 } else {
                     // layout(name, value) - sets a layout- attribute
                     this.setAttribute('layout-style', name + ':' + value);
@@ -216,7 +216,7 @@
                 }
             } else if (argsLength === 0) {
                 // layout() - executes layout
-                layout(this);
+                _layout(this);
             }
         });
     }
@@ -307,31 +307,27 @@
     }
 
     function containerUtils() {
-        var containerWidth = null,
-            containerHeight = null;
+        var bounds = null;
 
         var container = function(point) {
+            var width = bounds[0], height = bounds[1];
             // If the bounds haven't been defined, then don't enforce
-            return (containerWidth == null && containerHeight == null) ||
+            return (width == null && height == null) ||
                 (!(point.x < 0 || point.y < 0 ||
-                point.x > containerWidth || point.y > containerHeight ||
-                (point.x + point.width) > containerWidth ||
-                (point.y + point.height) > containerHeight));
+                point.x > width || point.y > height ||
+                (point.x + point.width) > width ||
+                (point.y + point.height) > height));
         };
 
-        container.containerWidth = function(value) {
-            if (!arguments.length) {
-                return containerWidth;
-            }
-            containerWidth = value;
-            return container;
+        container.area = function() {
+            return bounds[0] * bounds[1];
         };
 
-        container.containerHeight = function(value) {
+        container.bounds = function(value) {
             if (!arguments.length) {
-                return containerHeight;
+                return bounds;
             }
-            containerHeight = value;
+            bounds = value;
             return container;
         };
 
@@ -401,8 +397,7 @@
             return cloneAndReplace(iteratedData, victimLabelIndex, replacement);
         }
 
-        d3.rebind(strategy, container, 'containerWidth');
-        d3.rebind(strategy, container, 'containerHeight');
+        d3.rebind(strategy, container, 'bounds');
 
         function scorer(placement) {
             var collisionArea = totalCollisionArea(placement);
@@ -417,6 +412,7 @@
         return strategy;
     }
 
+    // returns the item from the given array that returns the least value from the accessor function
     function minimum(data, accessor) {
         return data.map(function(dataPoint) {
             return [accessor(dataPoint), dataPoint];
@@ -482,7 +478,7 @@
                 var bestPlacement = minimum(candidateReplacements, function(placement) {
                     var areaOfCollisions = collisionArea(placement, d[1]);
                     var isOnScreen = container(placement[d[1]]);
-                    return areaOfCollisions + (isOnScreen ? 0 : Number.MAX_VALUE);
+                    return areaOfCollisions + (isOnScreen ? 0 : container.area());
                 });
 
                 iteratedData = bestPlacement;
@@ -490,8 +486,7 @@
             return iteratedData;
         }
 
-        d3.rebind(strategy, container, 'containerWidth');
-        d3.rebind(strategy, container, 'containerHeight');
+        d3.rebind(strategy, container, 'bounds');
 
         return strategy;
     }
@@ -501,29 +496,25 @@
         var container = containerUtils();
 
         var strategy = function(data) {
-            var builtPoints = [];
+            var rectangles = [];
 
-            data.forEach(function(point) {
-                var allPointPlacements = getAllPlacements(point);
-                var candidateReplacements = allPointPlacements.map(function(placement) {
-                    return getCandidateReplacement(builtPoints, placement);
-                });
+            data.forEach(function(rectangle) {
+                // add this rectangle - in all its possible placements
+                var candidateConfigurations = getAllPlacements(rectangle)
+                    .map(function(placement) {
+                        var copy = rectangles.slice();
+                        copy.push(placement);
+                        return copy;
+                    });
 
-                builtPoints = minimum(candidateReplacements, scorer);
+                // keep the one the minimises the 'score'
+                rectangles = minimum(candidateConfigurations, scorer);
             });
 
-            return builtPoints;
+            return rectangles;
         };
 
-        d3.rebind(strategy, container, 'containerWidth');
-        d3.rebind(strategy, container, 'containerHeight');
-
-        function getCandidateReplacement(allPoints, point) {
-            var allPointsCopy = allPoints.slice();
-            allPointsCopy.push(point);
-
-            return allPointsCopy;
-        }
+        d3.rebind(strategy, container, 'bounds');
 
         function scorer(placement) {
             var areaOfCollisions = totalCollisionArea(placement);
@@ -532,7 +523,7 @@
                 var point = placement[i];
                 isOnScreen = container(point);
             }
-            return areaOfCollisions + (isOnScreen ? 0 : Infinity);
+            return areaOfCollisions + (isOnScreen ? 0 : container.area());
         }
 
         return strategy;
@@ -540,37 +531,28 @@
 
     function boundingBox() {
 
-        var containerWidth = 1,
-            containerHeight = 1;
+        var bounds = null;
 
         var strategy = function(data) {
             return data.map(function(d, i) {
 
                 var tx = d.x, ty = d.y;
-                if (tx + d.width > containerWidth) {
+                if (tx + d.width > bounds[0]) {
                     tx -= d.width;
                 }
 
-                if (ty + d.height > containerHeight) {
+                if (ty + d.height > bounds[1]) {
                     ty -= d.height;
                 }
                 return {x: tx, y: ty};
             });
         };
 
-        strategy.containerWidth = function(value) {
+        strategy.bounds = function(value) {
             if (!arguments.length) {
-                return containerWidth;
+                return bounds;
             }
-            containerWidth = value;
-            return strategy;
-        };
-
-        strategy.containerHeight = function(value) {
-            if (!arguments.length) {
-                return containerHeight;
-            }
-            containerHeight = value;
+            bounds = value;
             return strategy;
         };
 
@@ -583,20 +565,6 @@
         local: local,
         annealing: annealing
     };
-
-    // applies the d3.functor to each element of an array, allowing a mixed
-    // of functions and constants, e.g.
-    // [0, function(d) { return d.foo; }]
-    function functoredArray(x) {
-        var functoredItems = x.map(function(item) {
-            return d3.functor(item);
-        });
-        return function(d, i) {
-            return functoredItems.map(function(j) {
-                return j(d, i);
-            });
-        };
-    }
 
     /**
      * An overload of the d3.rebind method which allows the source methods
@@ -865,8 +833,8 @@
 
         var xScale = d3.scale.identity(),
             yScale = d3.scale.identity(),
-            anchor = noop,
             strategy = layoutStrategy || identity,
+            removeCollisions = false,
             component = noop;
 
         var dataJoin = dataJoinUtil()
@@ -874,28 +842,46 @@
             .element('g')
             .attr('class', 'rectangle');
 
+        // iteratively remove the rectangle with the greatest area of collision
+        function filterData(data, layout) {
+            var maxIndex, maxValue;
+            do {
+                maxIndex = -1;
+                maxValue = 0;
+                for (var i = 0; i < layout.length; i++) {
+                    var area = collisionArea(layout, i);
+                    if (area > maxValue) {
+                        maxValue = area;
+                        maxIndex = i;
+                    }
+                }
+                if (maxIndex !== -1) {
+                    layout.splice(maxIndex, 1);
+                    data.splice(maxIndex, 1);
+                }
+            } while (maxIndex !== -1);
+        }
+
         var rectangles = function(selection) {
 
             var xRange = range(xScale),
                 yRange = range(yScale);
 
-            if (strategy.containerWidth) {
-                strategy.containerWidth(Math.max(xRange[0], xRange[1]));
-            }
-            if (strategy.containerHeight) {
-                strategy.containerHeight(Math.max(yRange[0], yRange[1]));
+            if (strategy.bounds && xScale && yScale) {
+                strategy.bounds([
+                    Math.max(xRange[0], xRange[1]),
+                    Math.max(yRange[0], yRange[1])
+                ]);
             }
 
             selection.each(function(data, index) {
-                var g = dataJoin(this, data);
-
                 // obtain the rectangular bounding boxes for each child
                 var childRects = data.map(function(d, i) {
                     var childPos = position(d, i);
                     var childSize = size(d, i);
                     return {
-                        x: xScale(childPos[0]),
-                        y: yScale(childPos[1]),
+                        x: childPos[0],
+                        y: childPos[1],
                         width: childSize[0],
                         height: childSize[1]
                     };
@@ -904,17 +890,18 @@
                 // apply the strategy to derive the layout
                 var layout = strategy(childRects);
 
+                var filteredData = data.slice();
+                var filteredLayout = layout.slice();
+                if (removeCollisions) {
+                    filterData(filteredData, filteredLayout);
+                }
+
+                var g = dataJoin(this, filteredData);
+
                 // offset each rectangle accordingly
                 g.attr('transform', function(d, i) {
-                    var offset = layout[i];
+                    var offset = filteredLayout[i];
                     return 'translate(' + offset.x + ', ' + offset.y + ')';
-                });
-
-                // set the anchor-point for each rectangle
-                data.forEach(function(d, i) {
-                    var pos = position(d, i);
-                    var relativeAnchorPosition = [pos[0] - layout[i].x, pos[1] - layout[i].y];
-                    anchor(d, i, relativeAnchorPosition);
                 });
 
                 // set the layout width / height so that children can use SVG layout if required
@@ -933,7 +920,7 @@
             if (!arguments.length) {
                 return size;
             }
-            size = functoredArray(x);
+            size = d3.functor(x);
             return rectangles;
         };
 
@@ -941,15 +928,7 @@
             if (!arguments.length) {
                 return position;
             }
-            position = functoredArray(x);
-            return rectangles;
-        };
-
-        rectangles.anchor = function(x) {
-            if (!arguments.length) {
-                return anchor;
-            }
-            anchor = x;
+            position = d3.functor(x);
             return rectangles;
         };
 
@@ -977,10 +956,17 @@
             return rectangles;
         };
 
+        rectangles.removeCollisions = function(value) {
+            if (!arguments.length) {
+                return removeCollisions;
+            }
+            removeCollisions = value;
+            return rectangles;
+        };
         return rectangles;
     }
 
-    var _layout = {
+    var __layout = {
         rectangles: _rectangles,
         strategy: strategy
     };
@@ -1018,13 +1004,13 @@
         };
 
         return function(xPixel, yPixel) {
-            var nearest = data.map(function(d) {
-                var diff = objectiveFunction(xPixel, yPixel, xScale(xValue(d)), yScale(yValue(d)));
-                return [diff, d];
-            })
-            .reduce(function(accumulator, value) {
-                return accumulator[0] > value[0] ? value : accumulator;
-            }, [Number.MAX_VALUE, null])[1];
+            var filtered = data.filter(function(d, i) {
+                return defined(xValue, yValue)(d, i);
+            });
+
+            var nearest = minimum(filtered, function(d) {
+                return objectiveFunction(xPixel, yPixel, xScale(xValue(d)), yScale(yValue(d)));
+            });
 
             return {
                 datum: nearest,
@@ -1286,7 +1272,6 @@
         seriesPointSnapXOnly: seriesPointSnapXOnly,
         seriesPointSnapYOnly: seriesPointSnapYOnly,
         render: render,
-        arrayFunctor: functoredArray,
         array: _array
     };
 
@@ -1837,11 +1822,11 @@
 
         var multi = function(selection) {
 
-            selection.each(function(data) {
+            selection.each(function(data, i) {
 
                 var g = dataJoin(this, series);
 
-                g.each(function(dataSeries, i) {
+                g.each(function(dataSeries, seriesIndex) {
                     // We must always assign the series to the node, as the order
                     // may have changed. N.B. in such a case the output is most
                     // likely garbage (containers should not be re-used) but by
@@ -1852,14 +1837,14 @@
                     (dataSeries.yScale || dataSeries.y).call(dataSeries, yScale);
 
                     d3.select(this)
-                        .datum(mapping.call(data, dataSeries, i))
+                        .datum(mapping.call(data, dataSeries, seriesIndex))
                         .call(dataSeries);
                 });
 
                 // order is not available on a transition selection
                 d3.selection.prototype.order.call(g);
 
-                decorate(g);
+                decorate(g, data, i);
             });
         };
 
@@ -2062,8 +2047,8 @@
             yScale = d3.scale.linear(),
             y0Value = d3.functor(0),
             x0Value = d3.functor(0),
-            xValue = function(d, i) { return d.date; },
-            yValue = function(d, i) { return d.close; };
+            xValue = function(d, i) { return d.x; },
+            yValue = function(d, i) { return d.y; };
 
         function base() { }
 
@@ -2572,7 +2557,7 @@
     // Renders an OHLC as an SVG path based on the given array of datapoints. Each
     // OHLC has a fixed width, whilst the x, open, high, low and close positions are
     // obtained from each point via the supplied accessor functions.
-    function ohlc() {
+    function _ohlc() {
 
         var x = function(d, i) { return d.date; },
             open = function(d, i) { return d.open; },
@@ -3095,7 +3080,7 @@
         axis: axis,
         bar: bar,
         candlestick: candlestick,
-        ohlc: ohlc,
+        ohlc: _ohlc,
         errorBar: errorBar,
         boxPlot: boxPlot
     };
@@ -3216,8 +3201,8 @@
             pathGenerator = bar();
 
         var base = xyBase()
-          .xValue(function(d, i) { return orient === 'vertical' ? d.date : d.close; })
-          .yValue(function(d, i) { return orient === 'vertical' ? d.close : d.date; });
+          .xValue(function(d, i) { return orient === 'vertical' ? d.x : d.y; })
+          .yValue(function(d, i) { return orient === 'vertical' ? d.y : d.x; });
 
         var dataJoin = dataJoinUtil()
             .selector('g.bar')
@@ -3367,12 +3352,12 @@
 
         var xScale = d3.time.scale(),
             yScale = d3.scale.linear(),
-            upperQuartile = function(d, i) { return (d.close + d.high) / 2; },
-            lowerQuartile = function(d, i) { return (d.close + d.low) / 2; },
+            upperQuartile = function(d, i) { return d.upperQuartile; },
+            lowerQuartile = function(d, i) { return d.lowerQuartile; },
             high = function(d, i) { return d.high; },
             low = function(d, i) { return d.low; },
-            value = function(d, i) { return d.date; },
-            median = function(d, i) { return d.close; },
+            value = function(d, i) { return d.value; },
+            median = function(d, i) { return d.median; },
             orient = 'vertical',
             barWidth = fractionalBarWidth(0.5),
             decorate = noop;
@@ -3530,7 +3515,7 @@
             yScale = d3.scale.linear(),
             high = function(d, i) { return d.high; },
             low = function(d, i) { return d.low; },
-            value = function(d, i) { return d.date; },
+            value = function(d, i) { return d.value; },
             orient = 'vertical',
             barWidth = fractionalBarWidth(0.5),
             decorate = noop;
@@ -3807,6 +3792,13 @@
             });
         };
 
+        groupedBar.groupWidth = function(_x) {
+            if (!arguments.length) {
+                return barWidth;
+            }
+            barWidth = d3.functor(_x);
+            return groupedBar;
+        };
         groupedBar.decorate = function(_x) {
             if (!arguments.length) {
                 return decorate;
@@ -4022,7 +4014,7 @@
         line: __line
     };
 
-    function _ohlc(drawMethod) {
+    function __ohlc(drawMethod) {
 
         var decorate = noop,
             base = ohlcBase();
@@ -4036,7 +4028,7 @@
             return 'translate(' + values.x + ', ' + values.yHigh + ')';
         }
 
-        var ohlc$$ = function(selection) {
+        var ohlc = function(selection) {
             selection.each(function(data, index) {
 
                 var filteredData = data.filter(base.defined);
@@ -4049,7 +4041,7 @@
                     })
                     .append('path');
 
-                var pathGenerator = ohlc()
+                var pathGenerator = _ohlc()
                         .width(base.width(filteredData));
 
                 g.each(function(d, i) {
@@ -4075,18 +4067,18 @@
             });
         };
 
-        ohlc$$.decorate = function(x) {
+        ohlc.decorate = function(x) {
             if (!arguments.length) {
                 return decorate;
             }
             decorate = x;
-            return ohlc$$;
+            return ohlc;
         };
 
-        d3.rebind(ohlc$$, dataJoin, 'key');
-        rebindAll(ohlc$$, base);
+        d3.rebind(ohlc, dataJoin, 'key');
+        rebindAll(ohlc, base);
 
-        return ohlc$$;
+        return ohlc;
     }
 
     function cycle() {
@@ -4356,7 +4348,7 @@
         cycle: cycle,
         line: _line,
         multi: _multi,
-        ohlc: _ohlc,
+        ohlc: __ohlc,
         point: _point,
         stacked: stacked,
         groupedBar: groupedBar,
@@ -4602,6 +4594,7 @@
             yScale = d3.scale.linear(),
             xValue = function(d) { return d.date; },
             root = function(d) { return d.elderRay; },
+            barWidth = fractionalBarWidth(0.75),
             bullBar = barUtil(),
             bearBar = barUtil(),
             bullBarTop = barUtil(),
@@ -4620,25 +4613,29 @@
                 .xValue(xValue)
                 .yValue(function(d, i) {
                     return isTop(root(d).bullPower, root(d).bearPower) ? undefined : root(d).bullPower;
-                });
+                })
+                .barWidth(barWidth);
 
             bearBar
                 .xValue(xValue)
                 .yValue(function(d, i) {
                     return isTop(root(d).bearPower, root(d).bullPower) ? undefined : root(d).bearPower;
-                });
+                })
+                .barWidth(barWidth);
 
             bullBarTop
                 .xValue(xValue)
                 .yValue(function(d, i) {
                     return isTop(root(d).bullPower, root(d).bearPower) ? root(d).bullPower : undefined;
-                });
+                })
+                .barWidth(barWidth);
 
             bearBarTop
                 .xValue(xValue)
                 .yValue(function(d, i) {
                     return isTop(root(d).bearPower, root(d).bullPower) ? root(d).bearPower : undefined;
-                });
+                })
+                .barWidth(barWidth);
 
             multi
                 .xScale(xScale)
@@ -4655,6 +4652,13 @@
             selection.call(multi);
         };
 
+        elderRay.barWidth = function(x) {
+            if (!arguments.length) {
+                return barWidth;
+            }
+            barWidth = d3.functor(x);
+            return elderRay;
+        };
         elderRay.xScale = function(x) {
             if (!arguments.length) {
                 return xScale;
@@ -4791,9 +4795,8 @@
         var annotations = line();
 
         var forceLine = _line()
-            .yValue(function(d, i) {
-                return d.force;
-            });
+            .xValue(function(d, i) { return d.date; })
+            .yValue(function(d, i) { return d.force; });
 
         var force = function(selection) {
 
@@ -4859,9 +4862,8 @@
 
         var annotations = line();
         var dLine = _line()
-            .yValue(function(d, i) {
-                return d.stochastic.d;
-            });
+            .xValue(function(d, i) { return d.date; })
+            .yValue(function(d, i) { return d.stochastic.d; });
 
         var kLine = _line()
             .yValue(function(d, i) {
@@ -4947,6 +4949,7 @@
 
         var annotations = line();
         var rsiLine = _line()
+            .xValue(function(d, i) { return d.date; })
             .yValue(function(d, i) { return d.rsi; });
 
         var rsi = function(selection) {
@@ -5088,6 +5091,8 @@
             decorate = x;
             return macd;
         };
+
+        d3.rebind(macd, divergenceBar, 'barWidth');
 
         return macd;
     }
@@ -5529,7 +5534,11 @@
     function __calculator() {
 
         var volumeValue = function(d, i) { return d.volume; },
-            closeValue = function(d, i) { return d.close; };
+            closeValue = function(d, i) { return d.close;},
+            value = identity;
+
+        var emaComputer = exponentialMovingAverage()
+            .windowSize(13);
 
         var slidingWindow = calculator()
             .windowSize(2)
@@ -5538,7 +5547,13 @@
             });
 
         var force = function(data) {
-            return slidingWindow(data);
+            emaComputer.value(value);
+            var forceIndex = slidingWindow(data).filter(identity);
+            var smoothedForceIndex = emaComputer(forceIndex);
+            if (data.length) {
+                smoothedForceIndex.unshift(undefined);
+            }
+            return smoothedForceIndex;
         };
 
         force.volumeValue = function(x) {
@@ -5556,7 +5571,7 @@
             return force;
         };
 
-        d3.rebind(force, slidingWindow, 'windowSize');
+        d3.rebind(force, emaComputer, 'windowSize');
 
         return force;
     }
@@ -6403,162 +6418,148 @@
     }
 
     function financial() {
-
-        var mu = 0.1,
-            sigma = 0.1,
-            startPrice = 100,
-            startVolume = 100000,
-            startDate = new Date(),
-            stepsPerDay = 50,
-            volumeNoiseFactor = 0.3,
-            filter = function(d) { return true; };
-
-        var calculateOHLC = function(days, prices, volumes) {
-
-            var ohlcv = [],
-                daySteps,
-                currentStep = 0,
-                currentIntraStep = 0;
-
-            while (ohlcv.length < days) {
-                daySteps = prices.slice(currentIntraStep, currentIntraStep + stepsPerDay);
-                ohlcv.push({
-                    date: new Date(startDate.getTime()),
-                    open: daySteps[0],
-                    high: Math.max.apply({}, daySteps),
-                    low: Math.min.apply({}, daySteps),
-                    close: daySteps[stepsPerDay - 1],
-                    volume: volumes[currentStep]
-                });
-                currentIntraStep += stepsPerDay;
-                currentStep += 1;
-                startDate.setUTCDate(startDate.getUTCDate() + 1);
-            }
-            return ohlcv;
+        var startDate = new Date();
+        var startPrice = 100;
+        var interval = d3.time.day;
+        var intervalStep = 1;
+        var unitInterval = d3.time.year;
+        var unitIntervalStep = 1;
+        var filter = null;
+        var volume = function() {
+            var randomNormal = d3.random.normal(1, 0.1);
+            return Math.ceil(randomNormal() * 1000);
         };
+        var walk$$ = walk();
 
-        function calculateInterval(start, days) {
-            var millisecondsPerYear = 3.15569e10;
+        function getOffsetPeriod(date) {
+            var unitMilliseconds = unitInterval.offset(date, unitIntervalStep) - date;
+            return (interval.offset(date, intervalStep) - date) / unitMilliseconds;
+        }
 
-            var toDate = new Date(start.getTime());
-            toDate.setUTCDate(start.getUTCDate() + days);
-
-            return {
-                toDate: toDate,
-                years: (toDate.getTime() - start.getTime()) / millisecondsPerYear
+        function calculateOHLC(start, price) {
+            var period = getOffsetPeriod(start);
+            var prices = walk$$.period(period)(price);
+            var ohlc = {
+                date: start,
+                open: prices[0],
+                high: Math.max.apply(Math, prices),
+                low: Math.min.apply(Math, prices),
+                close: prices[walk$$.steps()]
             };
+            ohlc.volume = volume(ohlc);
+            return ohlc;
         }
 
-        function dataGenerator(days, years) {
-
-            var prices = walk()
-                .period(years)
-                .steps(days * stepsPerDay)
-                .mu(mu)
-                .sigma(sigma)(startPrice);
-
-            var volumes = walk()
-                .period(years)
-                .steps(days)
-                .mu(0)
-                .sigma(sigma)(startVolume);
-
-            // Add random noise
-            volumes = volumes.map(function(vol) {
-                var boundedNoiseFactor = Math.min(0, Math.max(volumeNoiseFactor, 1));
-                var multiplier = 1 + (boundedNoiseFactor * (1 - 2 * Math.random()));
-                return Math.floor(vol * multiplier);
-            });
-
-            // Save the new start values
-            startPrice = prices[prices.length - 1];
-            startVolume = volumes[volumes.length - 1];
-
-            return calculateOHLC(days, prices, volumes).filter(function(d) {
-                return filter(d.date);
-            });
-        }
-
-        var gen = function(days) {
-            var date = startDate,
-                remainingDays = days,
-                result = [],
-                interval;
-
+        function getNextDatum(ohlc) {
+            var date, price;
             do {
-                interval = calculateInterval(date, remainingDays);
-                result = result.concat(dataGenerator(remainingDays, interval.years));
-                date = interval.toDate;
-                remainingDays = days - result.length;
-            }
-            while (result.length < days);
+                date = ohlc ? interval.offset(ohlc.date, intervalStep) : new Date(startDate.getTime());
+                price = ohlc ? ohlc.close : startPrice;
+                ohlc = calculateOHLC(date, price);
+            } while (filter && !filter(ohlc));
+            return ohlc;
+        }
 
-            return result;
+        var financial = function(numPoints) {
+            var stream = makeStream();
+            return stream.take(numPoints);
         };
 
-        gen.mu = function(x) {
-            if (!arguments.length) {
-                return mu;
-            }
-            mu = x;
-            return gen;
-        };
-        gen.sigma = function(x) {
-            if (!arguments.length) {
-                return sigma;
-            }
-            sigma = x;
-            return gen;
-        };
-        gen.startPrice = function(x) {
-            if (!arguments.length) {
-                return startPrice;
-            }
-            startPrice = x;
-            return gen;
-        };
-        gen.startVolume = function(x) {
-            if (!arguments.length) {
-                return startVolume;
-            }
-            startVolume = x;
-            return gen;
-        };
-        gen.startDate = function(x) {
+        financial.stream = makeStream;
+
+        function makeStream() {
+            var latest;
+            var stream = {};
+            stream.next = function() {
+                var ohlc = getNextDatum(latest);
+                latest = ohlc;
+                return ohlc;
+            };
+            stream.take = function(numPoints) {
+                return this.until(function(d, i) {
+                    return !numPoints || numPoints < 0 || i === numPoints;
+                });
+            };
+            stream.until = function(comparison) {
+                var data = [];
+                var index = 0;
+                var ohlc = getNextDatum(latest);
+                while (comparison && !comparison(ohlc, index)) {
+                    data.push(ohlc);
+                    latest = ohlc;
+                    ohlc = getNextDatum(latest);
+                    index += 1;
+                }
+                return data;
+            };
+            return stream;
+        }
+
+        financial.startDate = function(x) {
             if (!arguments.length) {
                 return startDate;
             }
             startDate = x;
-            return gen;
+            return financial;
         };
-        gen.stepsPerDay = function(x) {
+        financial.startPrice = function(x) {
             if (!arguments.length) {
-                return stepsPerDay;
+                return startPrice;
             }
-            stepsPerDay = x;
-            return gen;
+            startPrice = x;
+            return financial;
         };
-        gen.volumeNoiseFactor = function(x) {
+        financial.interval = function(x) {
             if (!arguments.length) {
-                return volumeNoiseFactor;
+                return interval;
             }
-            volumeNoiseFactor = x;
-            return gen;
+            interval = x;
+            return financial;
         };
-        gen.filter = function(x) {
+        financial.intervalStep = function(x) {
+            if (!arguments.length) {
+                return intervalStep;
+            }
+            intervalStep = x;
+            return financial;
+        };
+        financial.unitInterval = function(x) {
+            if (!arguments.length) {
+                return unitInterval;
+            }
+            unitInterval = x;
+            return financial;
+        };
+        financial.unitIntervalStep = function(x) {
+            if (!arguments.length) {
+                return unitIntervalStep;
+            }
+            unitIntervalStep = x;
+            return financial;
+        };
+        financial.filter = function(x) {
             if (!arguments.length) {
                 return filter;
             }
             filter = x;
-            return gen;
+            return financial;
+        };
+        financial.volume = function(x) {
+            if (!arguments.length) {
+                return volume;
+            }
+            volume = d3.functor(x);
+            return financial;
         };
 
-        return gen;
+        d3.rebind(financial, walk$$, 'steps', 'mu', 'sigma');
+
+        return financial;
     }
 
     function skipWeekends() {
-        return function(date) {
-            var day = date.getDay();
+        return function(datum) {
+            var day = datum.date.getDay();
             return !(day === 0 || day === 6);
         };
     }
@@ -7249,7 +7250,7 @@
                     </g> \
                     <g class="x-axis label-container"> \
                         <g layout-style="height: 0; width: 0"> \
-                            <text class="label"/> \
+                            <text class="label" dy="-0.5em"/> \
                         </g> \
                     </g> \
                     <g class="y-axis label-container"> \
@@ -7651,7 +7652,7 @@
     };
 
     // Needs to be defined like this so that the grunt task can update it
-    var version = '5.3.0';
+    var version = '6.0.0';
 
     var fc = {
         annotation: annotation,
@@ -7664,7 +7665,7 @@
         tool: tool,
         util: util,
         version: version,
-        layout: _layout
+        layout: __layout
     };
 
     return fc;
